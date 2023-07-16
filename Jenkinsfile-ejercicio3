@@ -1,0 +1,243 @@
+/* Ejercicio 3 .
+Se implementará un pipeline que tenga las siguientes fases (stages):
+Inicialización
+Descarga código fuente
+Compilación y empaquetado
+Pruebas de componentes, que a su vez, contendrá las siguientes fases (stages):
+    Análisis estático de código, que solo se ejecutará si la variable analizarConSonar está a "true". Adicionalmente, en caso de que se produzca error en el analisis, continuaremos con la ejecución del pipeline.
+    Umbral de calidad, que solo se ejecutará si la variable analizarConSonar está a "true". Se esperará al resultado del umbral de calidad, y en caso de no superarlo, se indicará un mensaje. Adicionalmente, en caso de que se produzca error en el analisis, continuaremos con la ejecución del pipeline.
+    Análisis de dependencias, que solo se ejecutará si la variable analizarConOWASP es "true". Obtendremos los resultados en todos los formatos posibles (--format ALL). 
+Deploy (que realizará un despliegue en un Tomcat9)
+
+Al finalizar la ejecución del pipeline, en caso de éxito, publicaremos los resultados de DependencyCheck
+
+Las fases ya están creadas. Algunas tienen ya contenido agregado para ayudarte.
+
+Indicaciones adicionales
+
+Se declararán las siguites variables:
+
+credencialesGIT -> contendrá las credenciales que se obtendrán del vault de Jenkins
+urlGIT -> URL al repositorio GIT que contendrá el proyecto a descargar y compilar
+rama -> Rama que se utilizará
+versionJDK -> versión de JDK a utilizar 
+versionMaven -> versión de Maven a utilizar
+dependencyCheckTool -> versión herramienta dependency check a utilizar 
+sonarScannerTool -> versión del scanner a utilizar 
+sonarToken -> Token de sonar
+instalacionSonar -> instalación sonar
+realizarCompilacion -> valor booleano que indicará si debe ejecutarse la compilación.
+realizarDespliegue -> valor booleano que indicará si debe ejecutarse el despliegue.
+ 
+*/
+
+
+//Configuración repositorio 
+def credencialesGIT = "userGitH"
+def urlGIT = "https://github.com/jacampano/pruebasWebApp.git"
+def rama = "main"
+
+
+// Herramientas y servidores
+def versionJDK = "JDK11"
+def versionMaven = "Maven-3.8.6"
+def dependencyCheckTool = "" // Buscar/Configurar en Jenkins
+def sonarScannerTool = "" // Buscar/Configurar en Jenkins
+def sonarToken = "" // Buscar/Configurar en Jenkins
+def instalacionSonar = "" // Buscar/Configurar en Jenkins
+
+//Condiciones ejecución fases --
+def realizarCompilacion = true
+def analizarConSonar = true
+def analizarConOWASP = true
+def realizarPruebasUnitarias = true
+def realizarDespliegue = true
+
+pipeline {
+    
+    agent any
+          
+    stages {
+        // Preparación tareas previas. Ejecución de tareas previas preparatorias de la ejecución de la Tubería.        
+        stage('Inicialización')
+        {
+            steps{
+
+                cleanWs()
+                /*
+                // Si se ejecutatase a través de un webHook, podriamos obtener la información de la URL del repo y la rama de las siguientes propiedades
+                script {
+                    urlGIT=env.gitlabSourceRepoHttpUrl
+                    rama=env.gitlabBranch
+                }
+                */
+            }
+        }
+
+        stage('Descarga código fuente') {
+            steps {
+                
+                echo "--- Obtener Codigo Fuente desde rama:" + rama + "--"
+                checkout([$class: 'GitSCM',
+                       branches: [[name: "${rama}"]],
+                       doGenerateSubmoduleConfigurations: false,
+                       extensions: [], gitTool: 'git', submoduleCfg: [],
+                       userRemoteConfigs: [[credentialsId: "${credencialesGIT}", url: "${urlGIT}"]]])
+            }
+                
+  
+        }
+        
+        stage('Compilación y empaquetado') {
+              when {
+                expression {
+                    realizarCompilacion == true
+                }
+            }
+          
+                steps {
+                    script {
+                        
+                        withEnv(["JAVA_HOME=${ tool versionJDK}"]) {
+                            withMaven(maven: versionMaven) {
+
+                            echo "--- Compilación y empaquetado ---"
+                            echo "JAVA_HOME: $JAVA_HOME"
+                            sh "mvn clean package -DskipTests"
+                                       
+                            }
+                        }
+         
+                    }
+                 
+                }
+            }
+        
+        
+        //PRUEBAS DE COMPONENTES. Ejecución de pruebas individualizadas de los componentes que conforman el producto software. Estas pruebas no deben requerir el despliegue del producto.
+        stage('Pruebas de Componentes'){
+            stages {
+                stage('Analisis estático de código') {
+                    when {
+                        expression {
+                           analizarConSonar == true
+                          }
+                     }
+
+                    
+                    steps {
+                       echo "--- Implementar análisis estático de código ---"
+                    }
+               
+                
+                }  
+                
+                
+
+                stage('Umbral de Calidad') {
+
+                     when {
+                        expression {
+                           analizarConSonar == true
+                          }
+                     }
+
+                     steps {
+                        echo "--- Implementar espera de los resultados del umbral de calidad ---"
+                       
+                    } 
+
+                }
+
+                stage('Analisis de dependencias') {
+                    when {
+                        expression {
+                           analizarConOWASP == true
+                          }
+                     }
+
+                    steps {
+                        echo "--- Implementar el analisis de las dependencias ---"
+
+                    }
+
+                    post {
+                        success {
+                            
+                            echo "Acción a realizar si se ejecuta correctamente"
+
+                        }
+                    }
+                }
+
+
+                stage('Ejecución pruebas unitarias') {
+                     when {
+                        expression {
+                           realizarPruebasUnitarias == true
+                          }
+                     }
+
+  
+                        steps {
+                                                  
+                            echo "--- Implementar pruebas unitarias ---"
+ 
+                        }
+
+                   post {
+                        success {
+                            echo "Acción a realizar si se ejecuta correctamente"
+                         
+                        }
+                    }
+                }
+
+            }
+           
+            }//Fin pruebas de componentes
+        
+
+ 
+        //Aqui nueva fase que realiza el despliegue de un WAR.
+        stage('Deploy') {
+             when {
+                expression {
+                realizarDespliegue == true
+                }
+            }
+            
+             steps {
+                    script {
+                        deploy adapters: [tomcat9(credentialsId: "robot", path: '', url: "http://servidor.tomcat:8080/")], contextPath: "/pruebasWebApp", war: "**/*.war"
+                    }
+                }
+
+        }
+
+    }
+        
+        post {
+            success {
+                echo "--- Implementar publicación de los resultados de dependencyCheck ---"
+                echo "Acción cuando se completa con éxito"
+            }
+            aborted {
+                
+               echo "--- Aciones cuando se aborta ---"
+                
+            }
+            failure {
+                
+                echo "-- Aciones cuando se falla ---"
+              
+                
+            }
+
+            always {
+                echo "--- SE EJECUTA SIEMPRE ---"
+            }
+        } 
+    }
+
+

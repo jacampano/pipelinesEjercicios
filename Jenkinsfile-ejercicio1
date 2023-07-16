@@ -1,0 +1,99 @@
+/* Ejercicio 1 .
+Se implementará un pipeline que tenga las siguientes fases (stages):
+Inicialización
+Descarga código fuente
+Compilación y empaquetado
+
+Las fases ya están creadas. Algunas tienen ya contenido agregado para ayudarte.
+
+Indicaciones adicionales
+
+Se declararán las siguites variables:
+
+credencialesGIT -> contendrá las credenciales que se obtendrán del vault de Jenkins
+urlGIT -> URL al repositorio GIT que contendrá el proyecto a descargar y compilar
+rama -> Rama que se utilizará
+versionJDK -> versión de JDK a utilizar 
+versionMaven -> versión de Maven a utilizar
+ 
+
+ Para este ejercicio, se utlizará el repositorio que reside en GitHub . Los goals de maven que se pasarán serán los siguientes "clean package -DskipTests".
+ Para la descarga del proyecto, puedes utilizar el step "checkout". Consulta la sintaxis en Jenkins
+*/
+
+def credencialesGIT = "" 
+def rama = "mi_rama"
+//Dar de alta, el resto de variables
+
+pipeline {
+    
+    agent any
+          
+    stages {
+        // Preparación tareas previas. Ejecución de tareas previas preparatorias de la ejecución dl pipeline.        
+        stage('Inicialización')
+        {
+            steps{
+               
+                cleanWs()
+      
+            }
+        }
+        //Descarga código fuente
+        stage('Descarga código fuente') {
+            steps {
+                
+                echo "--- Obtener Codigo Fuente desde rama:" + rama + "--"
+                //Incluir código para realizar la descarga desde el código fuente
+            }
+                
+  
+        }
+        // Compilación y empaquetado
+        stage('Compilación y empaquetado') {
+        
+                steps {
+                    script {
+
+                         echo "--- Compilación y empaquetado --"
+                         //Incluir código para realizar la descarga desde el código fuente
+                        
+                    }
+                 
+                }
+            }
+        
+
+    } // Fin stages
+        
+        post {
+            success {
+                echo "Acción cuando se completa con éxito"
+            }
+            aborted {
+                
+               echo "--- Aciones cuando se aborta ---"
+                
+            }
+            failure {
+                
+                echo "-- Aciones cuando se falla ---"
+              
+                
+            }
+
+            always {
+                echo "--- SE EJECUTA SIEMPRE ---"
+            }
+
+             unstable {
+                echo '--- Se ejecuta solo cuando el build se ha marcado como unstable'
+            }
+        changed {
+                echo '--- Se ejecuta solo cuando el build cambia de estado'
+                echo '--- Por eejemplo, si antes había falladado y en la ejecución actual termina de manera satisfactoria'
+            }
+        } 
+    }
+
+
